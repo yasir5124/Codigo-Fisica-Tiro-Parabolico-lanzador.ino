@@ -117,4 +117,4 @@ Los siguientes parametros del codigo dependen del montaje mecanico real y deben 
 
 ## Autor
 
-* **Tu Nombre / Grupo de Investigacion** - *Desarrollo del proyecto*
+* **yasir5124, giselle2713, junkun123**
