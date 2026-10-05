@@ -1,79 +1,120 @@
-Catapulta robótica de lanzamiento controlado
-Código para Arduino Uno de una catapulta robótica que lanza un proyectil hacia un objetivo, usando el modelo del movimiento parabólico.
+# Catapulta Robotica de Lanzamiento Controlado
 
-Proyecto del Taller de Investigación: Modelación y validación experimental del movimiento parabólico.
+Codigo para Arduino Uno de una catapulta robotica que lanza un proyectil hacia un objetivo, utilizando el modelo fisico del movimiento parabolico. 
 
-¿Cómo funciona?
-El mecanismo usa 4 servos y un sensor ultrasónico:
+Este proyecto forma parte del Taller de Investigacion: Modelacion y validacion experimental del movimiento parabolico.
 
-Componente	Función
-Servo liberador	Suelta el brazo para disparar
-Servo tensor	Tensa/comprime el resorte
-Servo de ángulo	Eleva el cañón (ángulo θ)
-Servo de base	Rota la plataforma (ángulo φ, azimut)
-HC-SR04	Mide la distancia al objetivo
-Modos de operación
-Se eligen desde el Monitor Serie (115200 baudios):
+---
 
-Modo 1 – Barrido automático: la base gira de 0° a 180° hasta detectar un objeto dentro del rango. Calcula el ángulo de elevación necesario, se posiciona y dispara.
-Modo 2 – Coordenadas: el usuario ingresa X,Y en metros (por ejemplo 1.20,0.80). El programa calcula el ángulo de base y de elevación, se posiciona y dispara.
-Modelo físico
-El proyectil no sale del eje de rotación, sino de la boca del cañón, a una distancia L_CANON del pivote. Por eso el punto de salida cambia con el ángulo:
+## Como funciona?
 
-x_lanz = L · cos(θ)
-y_lanz = L · sin(θ)
-El alcance total se calcula resolviendo la cuadrática completa del tiempo de vuelo (sin suponer salida al ras del piso), y el ángulo de elevación se obtiene con una búsqueda numérica entre ANG_ELEVACION_MIN y ANG_ELEVACION_MAX (paso de 0.1°), eligiendo el ángulo cuyo alcance se acerque más al objetivo (tolerancia de 3 cm).
+El mecanismo utiliza 4 servomotores y un sensor ultrasonico para automatizar el apuntado y disparo:
 
-La velocidad inicial se obtiene de la energía del resorte:
+| Componente | Funcion |
+| :--- | :--- |
+| **Servo liberador** | Suelta el brazo para ejecutar el disparo. |
+| **Servo tensor** | Tensa o comprime el resorte a la posicion requerida. |
+| **Servo de angulo** | Eleva el cañon para ajustar el angulo de elevacion (θ). |
+| **Servo de base** | Rota la plataforma para ajustar el azimut o angulo de base (φ). |
+| **HC-SR04** | Mide la distancia en tiempo real hacia el objetivo. |
 
-vi = sqrt(k · xmax² / m)
-donde k se mide por equilibrio estático, xmax es la compresión máxima del resorte y m la masa del proyectil.
+---
 
-Materiales
-Arduino Uno
-4 servomotores
-Sensor ultrasónico HC-SR04
-Fuente externa de 5 V para los servos
-Resorte, estructura y cañón (tubo)
-Cables jumper
-Conexiones
-Elemento	Pin Arduino
-Servo liberador	9
-Servo tensor	8
-Servo de ángulo	7
-Servo de base	6
-HC-SR04 TRIG	4
-HC-SR04 ECHO	3
-Importante: el pin de 5 V del Arduino Uno no alimenta 4 servos de forma confiable, sobre todo al disparar. Usa una fuente externa de 5 V para los servos y conecta su GND al GND del Arduino.
+## Modos de operacion
 
-El HC-SR04 trabaja a 5 V igual que el Uno, así que se conecta directo, sin divisor de voltaje.
+Los modos se seleccionan directamente desde el Monitor Serie configurado a 115200 baudios:
 
-Instalación y uso
-Instala el IDE de Arduino.
-Clona el repositorio o descarga lanzador.ino. Recuerda que el archivo debe estar dentro de una carpeta con el mismo nombre (lanzador/lanzador.ino).
-Abre el archivo, selecciona la placa Arduino Uno y el puerto correspondiente.
-Sube el código. No hace falta instalar librerías: usa Servo.h, que ya viene con el IDE.
-Abre el Monitor Serie a 115200 baudios.
-Escribe 1 o 2 para elegir el modo.
-Calibración (hacer antes de usar)
-Estos valores dependen del montaje real y deben ajustarse con pruebas físicas:
+* **Modo 1 – Barrido automatico:** La base gira de 0° a 180° hasta que el sensor detecta un objeto dentro del rango. En ese momento, calcula el angulo de elevacion necesario, posiciona los servos y dispara.
+* **Modo 2 – Coordenadas:** El usuario ingresa de forma manual las coordenadas X, Y en metros (por ejemplo: `1.20,0.80`). El programa calcula automaticamente el angulo de la base y de elevación, se posiciona y dispara.
 
-Parámetro	Descripción
-VI	Velocidad inicial real del proyectil (m/s). El valor por defecto (3.20) es solo un ejemplo: reemplázalo por el medido en el laboratorio
-L_CANON	Largo del tubo desde el pivote hasta la boca de salida (m)
-R_SENSOR	Distancia del sensor al eje de rotación (m)
-ANG_*	Posiciones de cada servo (liberador, tensor, elevación y base) según el montaje mecánico
-phiServo (offset de +90°)	Depende de cómo quede orientado el cero del servo de base respecto al sistema de coordenadas del laboratorio
-DIST_MIN_DISPARO / DIST_MAX_DISPARO	Rango de distancias en el que el mecanismo dispara
-Alcance real: aunque DIST_MAX_DISPARO está en 2.5 m, el alcance verdadero lo limita VI. Si el objetivo está fuera de lo que el mecanismo puede alcanzar, el programa lo indica y no dispara.
+---
 
-Estructura del repositorio
+## Modelo fisico
+
+El proyectil no sale directamente del eje de rotacion, sino de la boca del cañon, situada a una distancia L_CANON del pivote. Por lo tanto, el punto de salida cambia dinamicamente segun el angulo:
+
+\[x_{lanz} = L \cdot \cos(\theta)\]
+\[y_{lanz} = L \cdot \sin(\theta)\]
+
+* **Calculo de trayectoria:** El alcance total se calcula resolviendo la ecuacion cuadratica completa del tiempo de vuelo (sin suponer salida al ras del suelo).
+* **Busqueda del angulo:** El angulo de elevacion se obtiene mediante una busqueda numerica entre `ANG_ELEVACION_MIN` y `ANG_ELEVACION_MAX` (con un paso de 0.1°), eligiendo el angulo cuyo alcance estimado se acerque mas al objetivo con una tolerancia de 3 cm.
+* **Velocidad inicial (v_i):** Se obtiene a partir de la energia elastica del resorte:
+  \[v_i = \sqrt{\frac{k \cdot x_{max}^2}{m}}\]
+  Donde k se mide por equilibrio estatico, x_max es la compresion maxima del resorte y m es la masa del proyectil.
+
+---
+
+## Materiales
+
+* Arduino Uno
+* 4 Servomotores
+* Sensor ultrasonico HC-SR04
+* Fuente de alimentacion externa de 5 V (para los servos)
+* Resorte, estructura mecanica y cañon (tubo)
+* Cables jumper
+
+---
+
+## Conexiones
+
+| Elemento | Pin Arduino |
+| :--- | :---: |
+| Servo liberador | **9** |
+| Servo tensor | **8** |
+| Servo de angulo | **7** |
+| Servo de base | **6** |
+| HC-SR04 TRIG | **4** |
+| HC-SR04 ECHO | **3** |
+
+> [!IMPORTANT]
+> El pin de 5 V del Arduino Uno no puede alimentar 4 servos de forma confiable, especialmente durante el pico de corriente al disparar. Usa una fuente externa de 5 V para los servos y recuerda unir su tierra (GND) con el GND del Arduino. El HC-SR04 trabaja a 5 V y se conecta directo, sin divisor de voltaje.
+
+---
+
+## Instalacion y uso
+
+1. Descarga e instala el Arduino IDE.
+2. Clona este repositorio o descarga el archivo `lanzador.ino`.
+3. Asegurate de que el archivo este dentro de una carpeta con su mismo nombre (`lanzador/lanzador.ino`).
+4. Abre el archivo en el IDE, selecciona la placa Arduino Uno y el puerto COM asignado.
+5. Sube el codigo a la placa. (No requiere librerias externas; utiliza `Servo.h` integrada en el IDE).
+6. Abre el Monitor Serie a 115200 baudios.
+7. Escribe `1` o `2` en la linea de comandos para elegir el modo de operacion.
+
+---
+
+## Calibracion (Antes de usar)
+
+Los siguientes parametros del codigo dependen del montaje mecanico real y deben ajustarse mediante pruebas fisicas en el laboratorio:
+
+* **`VI`**: Velocidad inicial real del proyectil (m/s). El valor por defecto (`3.20`) es ilustrativo; reemplazalo por el medido experimentalmente.
+* **`L_CANON`**: Largo del tubo desde el pivote de elevacion hasta la boca de salida (m).
+* **`R_SENSOR`**: Distancia fisica desde el sensor ultrasonico hasta el eje de rotacion (m).
+* **`ANG_*`**: Limites de posicion de cada servo (liberador, tensor, elevacion y base) segun el acoplamiento mecanico.
+* **`phiServo` (offset de +90°)**: Ajuste de orientacion del grado cero de la base respecto al eje de coordenadas del laboratorio.
+* **`DIST_MIN_DISPARO` / `DIST_MAX_DISPARO`**: Rango operativo de distancias de disparo. Aunque el limite maximo este configurado en `2.5 m`, el alcance real final esta acotado por la velocidad inicial (`VI`). Si el objetivo es inalcanzable, el programa lo advertira en el monitor serie y abortara el disparo.
+
+---
+
+## Estructura del repositorio
+
+```text
 .
 ├── lanzador/
 │   └── lanzador.ino
 └── README.md
-Seguridad
-Mantén a las personas fuera de la zona de lanzamiento.
-Usa proyectiles ligeros y blandos.
-Desconecta la alimentación antes de manipular el resorte o el tensor.
-Autor
+```
+
+---
+
+## Seguridad
+
+* Mantenga a todas las personas alejadas de la zona de trayectoria y del vector de lanzamiento.
+* Utilice exclusivamente proyectiles ligeros y de materiales blandos (ej. espuma o goma eva).
+* Desconecte siempre la alimentacion electrica antes de manipular manualmente el resorte o el mecanismo del tensor.
+
+---
+
+## Autor
+
+* **Tu Nombre / Grupo de Investigacion** - *Desarrollo del proyecto*
