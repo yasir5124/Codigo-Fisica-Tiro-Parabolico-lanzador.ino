@@ -33,13 +33,13 @@ Los modos se seleccionan directamente desde el Monitor Serie configurado a 11520
 
 El proyectil no sale directamente del eje de rotacion, sino de la boca del cañon, situada a una distancia L_CANON del pivote. Por lo tanto, el punto de salida cambia dinamicamente segun el angulo:
 
-\[x_{lanz} = L \cdot \cos(\theta)\]
-\[y_{lanz} = L \cdot \sin(\theta)\]
+x_lanz = L · cos(θ)
+y_lanz = L · sin(θ)
 
 * **Calculo de trayectoria:** El alcance total se calcula resolviendo la ecuacion cuadratica completa del tiempo de vuelo (sin suponer salida al ras del suelo).
 * **Busqueda del angulo:** El angulo de elevacion se obtiene mediante una busqueda numerica entre `ANG_ELEVACION_MIN` y `ANG_ELEVACION_MAX` (con un paso de 0.1°), eligiendo el angulo cuyo alcance estimado se acerque mas al objetivo con una tolerancia de 3 cm.
 * **Velocidad inicial (v_i):** Se obtiene a partir de la energia elastica del resorte:
-  \[v_i = \sqrt{\frac{k \cdot x_{max}^2}{m}}\]
+vi = sqrt(k · xmax² / m)
   Donde k se mide por equilibrio estatico, x_max es la compresion maxima del resorte y m es la masa del proyectil.
 
 ---
