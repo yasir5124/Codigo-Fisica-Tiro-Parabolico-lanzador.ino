@@ -115,6 +115,6 @@ Los siguientes parametros del codigo dependen del montaje mecanico real y deben 
 
 ---
 
-## Autor
+## Autores
 
 * **yasir5124, giselle2713, junkun123**
