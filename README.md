@@ -1,56 +1,63 @@
-# Catapulta Robotica de Lanzamiento Controlado
+# Cañón Robótico de Lanzamiento Controlado
 
-Codigo para Arduino Uno de una catapulta robotica que lanza un proyectil hacia un objetivo, utilizando el modelo fisico del movimiento parabolico. 
+Código para Arduino Uno de un cañón de resorte con elevación y base giratoria controladas por servomotores. Un sensor ultrasónico mide la distancia a un objeto y el programa calcula, con el modelo físico del movimiento parabólico, el ángulo de elevación necesario para que el proyectil caiga sobre él.
 
-Este proyecto forma parte del Taller de Investigacion: Modelacion y validacion experimental del movimiento parabolico.
+Este proyecto forma parte del Taller de Investigación: *Modelación y validación experimental del movimiento parabólico mediante un mecanismo robótico de lanzamiento controlado* (Universidad Evangélica de El Salvador).
+
+> **Nota:** el tensado del resorte y la liberación de la varilla se hacen **a mano**. El programa posiciona la base y la elevación, pero **no dispara**.
 
 ---
 
-## Como funciona?
+## ¿Cómo funciona?
 
-El mecanismo utiliza 4 servomotores y un sensor ultrasonico para automatizar el apuntado y disparo:
+El mecanismo usa 2 servomotores y un sensor ultrasónico:
 
-| Componente | Funcion |
+| Componente | Función |
 | :--- | :--- |
-| **Servo liberador** | Suelta el brazo para ejecutar el disparo. |
-| **Servo tensor** | Tensa o comprime el resorte a la posicion requerida. |
-| **Servo de angulo** | Eleva el cañon para ajustar el angulo de elevacion (θ). |
-| **Servo de base** | Rota la plataforma para ajustar el azimut o angulo de base (φ). |
-| **HC-SR04** | Mide la distancia en tiempo real hacia el objetivo. |
+| **Servo de elevación** | Inclina el cañón mediante engranes 2:1 (20 y 40 dientes): el tubo gira la mitad que el servo. |
+| **Servo de base** | Gira la plataforma de 0° a 180° (azimut). |
+| **HC-SR04** | Mide la distancia hacia el objetivo. |
 
 ---
 
-## Modos de operacion
+## Comandos
 
-Los modos se seleccionan directamente desde el Monitor Serie configurado a 115200 baudios:
+Se envían desde el Monitor Serie, a **9600 baudios**, con el formato `comando,valor`:
 
-* **Modo 1 – Barrido automatico:** La base gira de 0° a 180° hasta que el sensor detecta un objeto dentro del rango. En ese momento, calcula el angulo de elevacion necesario, posiciona los servos y dispara.
-* **Modo 2 – Coordenadas:** El usuario ingresa de forma manual las coordenadas X, Y en metros (por ejemplo: `1.20,0.80`). El programa calcula automaticamente el angulo de la base y de elevación, se posiciona y dispara.
+| Comando | Qué hace |
+| :--- | :--- |
+| `1,ang` | Fija la elevación del tubo, de 0° a 80° (el programa envía al servo el doble del ángulo). |
+| `2,ang` | Gira la base a `ang` grados (0° a 180°). |
+| `3,0` | **Barrido automático:** la base gira 0° → 180° → 0° en pasos de 1° midiendo con el sensor. Se queda con el primer objeto detectado (entre 15 y 80 cm), mide su ancho, apunta al centro, calcula el ángulo y posiciona la elevación. Si el objetivo no es alcanzable, avisa y no mueve el lanzador. Para buscar de nuevo se envía `3,0`. |
+| `4,0` | Mide la distancia (mediana de 5 lecturas) y muestra el ángulo de tiro correspondiente, sin mover servos. |
+| `5,cm` | **Calibración:** después de fijar una elevación con `1,ang` y disparar, se envía la distancia del primer impacto (en cm, medida desde el eje de giro). El programa recalcula `K_VEL`, el alcance máximo teórico y la velocidad equivalente. El cambio dura hasta reiniciar la placa. |
+| `0,0` | Cancela el barrido en curso. |
 
 ---
 
-## Modelo fisico
+## Modelo físico
 
-El proyectil no sale directamente del eje de rotacion, sino de la boca del cañon, situada a una distancia L_CANON del pivote. Por lo tanto, el punto de salida cambia dinamicamente segun el angulo:
+El proyectil no sale del eje de giro sino de la boca del cañón, a una distancia `LONG_BRAZO` (10 cm) del pivote, así que la posición de salida cambia con el ángulo:
 
-x_lanz = L · cos(θ)
-y_lanz = L · sin(θ)
+```text
+x_boca = L · cos(θ)
+h_boca = h_eje + L · sin(θ)
+```
 
-* **Calculo de trayectoria:** El alcance total se calcula resolviendo la ecuacion cuadratica completa del tiempo de vuelo (sin suponer salida al ras del suelo).
-* **Busqueda del angulo:** El angulo de elevacion se obtiene mediante una busqueda numerica entre `ANG_ELEVACION_MIN` y `ANG_ELEVACION_MAX` (con un paso de 0.1°), eligiendo el angulo cuyo alcance estimado se acerque mas al objetivo con una tolerancia de 3 cm.
-* **Velocidad inicial (v_i):** Se obtiene a partir de la energia elastica del resorte:
-vi = sqrt(k · xmax² / m)
-  Donde k se mide por equilibrio estatico, x_max es la compresion maxima del resorte y m es la masa del proyectil.
+* **Constante de velocidad:** `K_VEL = v₀² / g` (cm, con v₀ en cm/s y g = 981 cm/s²). Con `V0 = 3.82 m/s` vale ≈ 148.8 cm. No debe confundirse con `K_RESORTE`, la constante del resorte.
+* **Cálculo del ángulo:** se despeja directamente de la ecuación de la trayectoria para que el proyectil caiga al piso a la distancia medida. Hay dos soluciones (tiro bajo y tiro alto) y el programa usa el **tiro alto**. Como la boca cambia de posición con el ángulo, el cálculo se repite 4 veces corrigiendo la distancia y la altura de salida.
+* **Fuera de alcance:** el objetivo se descarta si está a menos de 15 cm, a más del alcance máximo teórico (≈ 172 cm), o si el ángulo supera `ANG_MAX` (80°).
+* **Velocidad inicial:** por conservación de la energía del resorte, `v₀ = sqrt(k · x² / m)`. En el programa `V0` es una constante medida en las pruebas, y `K_RESORTE` y `MASA_KG` solo se usan para mostrar la compresión equivalente (≈ 3.19 cm).
 
 ---
 
 ## Materiales
 
 * Arduino Uno
-* 4 Servomotores
-* Sensor ultrasonico HC-SR04
-* Fuente de alimentacion externa de 5 V (para los servos)
-* Resorte, estructura mecanica y cañon (tubo)
+* 2 servomotores (elevación y base; el de la base es un MG995 de 180°)
+* Sensor ultrasónico HC-SR04
+* Fuente de alimentación externa para los servos
+* Resorte de compresión (k = 588.2 N/m), varilla, estructura mecánica y cañón (tubo de PVC)
 * Cables jumper
 
 ---
@@ -59,40 +66,48 @@ vi = sqrt(k · xmax² / m)
 
 | Elemento | Pin Arduino |
 | :--- | :---: |
-| Servo liberador | **9** |
-| Servo tensor | **8** |
-| Servo de angulo | **7** |
-| Servo de base | **6** |
-| HC-SR04 TRIG | **4** |
-| HC-SR04 ECHO | **3** |
+| Servo de elevación | **9** |
+| Servo de base | **10** |
+| HC-SR04 TRIG | **7** |
+| HC-SR04 ECHO | **6** |
 
 > [!IMPORTANT]
-> El pin de 5 V del Arduino Uno no puede alimentar 4 servos de forma confiable, especialmente durante el pico de corriente al disparar. Usa una fuente externa de 5 V para los servos y recuerda unir su tierra (GND) con el GND del Arduino. El HC-SR04 trabaja a 5 V y se conecta directo, sin divisor de voltaje.
+> Los servos deben alimentarse con una fuente externa, no con el pin de 5 V del Arduino. Une el GND de esa fuente con el GND del Arduino. El HC-SR04 trabaja a 5 V y se conecta directo, sin divisor de voltaje.
 
 ---
 
-## Instalacion y uso
+## Instalación y uso
 
 1. Descarga e instala el Arduino IDE.
 2. Clona este repositorio o descarga el archivo `lanzador.ino`.
-3. Asegurate de que el archivo este dentro de una carpeta con su mismo nombre (`lanzador/lanzador.ino`).
-4. Abre el archivo en el IDE, selecciona la placa Arduino Uno y el puerto COM asignado.
-5. Sube el codigo a la placa. (No requiere librerias externas; utiliza `Servo.h` integrada en el IDE).
-6. Abre el Monitor Serie a 115200 baudios.
-7. Escribe `1` o `2` en la linea de comandos para elegir el modo de operacion.
+3. Asegúrate de que el archivo esté dentro de una carpeta con su mismo nombre (`lanzador/lanzador.ino`).
+4. Ábrelo en el IDE, selecciona la placa Arduino Uno y el puerto COM asignado.
+5. Sube el código a la placa. No requiere librerías externas: usa `Servo.h`, incluida en el IDE.
+6. Abre el Monitor Serie a **9600 baudios**.
+7. Envía un comando, por ejemplo `3,0` para iniciar el barrido.
+8. Cuando el programa muestre `OBJETIVO FIJADO`, tensa el resorte y suelta la varilla a mano.
 
 ---
 
-## Calibracion (Antes de usar)
+## Calibración (antes de usar)
 
-Los siguientes parametros del codigo dependen del montaje mecanico real y deben ajustarse mediante pruebas fisicas en el laboratorio:
+Estos parámetros, al inicio del código, dependen del montaje real:
 
-* **`VI`**: Velocidad inicial real del proyectil (m/s). El valor por defecto (`3.20`) es ilustrativo; reemplazalo por el medido experimentalmente.
-* **`L_CANON`**: Largo del tubo desde el pivote de elevacion hasta la boca de salida (m).
-* **`R_SENSOR`**: Distancia fisica desde el sensor ultrasonico hasta el eje de rotacion (m).
-* **`ANG_*`**: Limites de posicion de cada servo (liberador, tensor, elevacion y base) segun el acoplamiento mecanico.
-* **`phiServo` (offset de +90°)**: Ajuste de orientacion del grado cero de la base respecto al eje de coordenadas del laboratorio.
-* **`DIST_MIN_DISPARO` / `DIST_MAX_DISPARO`**: Rango operativo de distancias de disparo. Aunque el limite maximo este configurado en `2.5 m`, el alcance real final esta acotado por la velocidad inicial (`VI`). Si el objetivo es inalcanzable, el programa lo advertira en el monitor serie y abortara el disparo.
+| Parámetro | Valor | Descripción |
+| :--- | :---: | :--- |
+| `V0` | 3.82 m/s | Velocidad inicial, medida en Tracker. Reemplázala si cambias el resorte o la compresión. |
+| `ALTURA_EJE` | 24.7 cm | Altura del eje de giro sobre el piso. |
+| `LONG_BRAZO` | 10 cm | Distancia del eje de giro a la boca del cañón. |
+| `K_RESORTE` | 588.2 N/m | Constante del resorte (medida por equilibrio estático). |
+| `MASA_KG` | 0.041 kg | Masa que acelera el resorte (varilla y canica). |
+| `ANG_MAX` | 80° | Ángulo máximo de tiro; el límite mecánico sería 90°. |
+| `DETECT_MIN` / `DETECT_MAX` | 15 / 80 cm | Rango de detección. En las pruebas el sensor no detectó objetos más lejos. |
+| `OFFSET_SENSOR` | 0 cm | Se suma a la distancia medida. |
+| `OFFSET_BASE` | 0° | Corrección si el eje del lanzador no es paralelo al del sensor. |
+| `PASO_MS`, `PASO_BUSQ` | 70 ms, 1° | Velocidad y paso del barrido. |
+| `VERBOSE` | `true` | `false` reduce el texto por serial y acelera el barrido. |
+
+Si el proyectil no cae donde se espera, usa el comando `5,cm` para recalcular `K_VEL` a partir de un disparo real y luego actualiza `V0` en el código.
 
 ---
 
@@ -109,9 +124,9 @@ Los siguientes parametros del codigo dependen del montaje mecanico real y deben 
 
 ## Seguridad
 
-* Mantenga a todas las personas alejadas de la zona de trayectoria y del vector de lanzamiento.
-* Utilice exclusivamente proyectiles ligeros y de materiales blandos (ej. espuma o goma eva).
-* Desconecte siempre la alimentacion electrica antes de manipular manualmente el resorte o el mecanismo del tensor.
+* Mantén a todas las personas alejadas de la zona de trayectoria y del vector de lanzamiento.
+* Usa proyectiles ligeros (el proyecto usó una canica de 5 g) y protección para los ojos.
+* Desconecta la alimentación eléctrica antes de manipular el resorte o la varilla.
 
 ---
 
